@@ -1,2 +1,2 @@
 # UsrActMqDealer
-基于golang的流处理器，利用超时队列技术实现流计算的 slice window、tumbling window
+本工程研制了基于超时队列技术的流处理器，实现了滚动时间窗口和滑动时间窗口的相关功能。
