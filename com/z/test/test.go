@@ -7,6 +7,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -21,15 +22,54 @@ func main() {
 }
 
 func testDeadlineContext() {
-	d := time.Now().Add(1 * time.Second)
-	ctx, cancel := context.WithDeadline(context.Background(), d)
-	defer cancel()
-	select {
-	case <- time.After(2 * time.Second):
-		fmt.Println("oversleep")
-	case <- ctx.Done():
-		fmt.Println(ctx.Err())
-	}
+	//d := time.Now().Add(1 * time.Second)
+	//ctx, cancel := context.WithDeadline(context.Background(), d)
+	//defer cancel()
+	//select {
+	//case <- time.After(2 * time.Second):
+	//	fmt.Println("oversleep")
+	//case <- ctx.Done():
+	//	fmt.Println(ctx.Err())
+	//}
+	myCtx := &MyContext{}
+	ctx, cancel := context.WithCancel(context.Background())
+	myCtx.ctx = ctx
+	myCtx.cancelFunc = cancel
+	//等待一组协程结束
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		myCtx.value1 = "value1"
+		defer wg.Add(-1)
+		go func() {
+			myCtx.value2 = "value2"
+			defer wg.Add(-1)
+			go func() {
+				defer wg.Add(-1)
+				for {
+					select {
+					case <-myCtx.ctx.Done():
+						fmt.Println(ctx.Err())
+						wg.Add(-1)
+					default:
+						fmt.Println("value1: ", myCtx.value1)
+						fmt.Println("value2: ", myCtx.value2)
+						myCtx.cancelFunc()
+					}
+
+				}
+			}()
+		}()
+	}()
+	wg.Wait()
+
+}
+
+type MyContext struct {
+	ctx        context.Context
+	cancelFunc context.CancelFunc
+	value1     string
+	value2     string
 }
 
 func testMap() {
